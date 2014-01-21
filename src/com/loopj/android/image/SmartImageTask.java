@@ -7,19 +7,18 @@ import android.os.Message;
 
 public class SmartImageTask implements Runnable {
     private static final int BITMAP_READY = 0;
-
+    
     private boolean cancelled = false;
     private OnCompleteHandler onCompleteHandler;
     private SmartImage image;
     private Context context;
-
+    
     public static class OnCompleteHandler extends Handler {
         @Override
         public void handleMessage(Message msg) {
-            Bitmap bitmap = (Bitmap)msg.obj;
-            onComplete(bitmap);
+        	Bitmap bitmap = (Bitmap)msg.obj;
+        	onComplete(bitmap);
         }
-
         public void onComplete(Bitmap bitmap){};
     }
 
@@ -35,7 +34,7 @@ public class SmartImageTask implements Runnable {
     @Override
     public void run() {
         if(image != null) {
-            complete(image.getBitmap(context));
+       		complete(image.getBitmap(context));
             context = null;
         }
     }
@@ -50,7 +49,7 @@ public class SmartImageTask implements Runnable {
 
     public void complete(Bitmap bitmap){
         if(onCompleteHandler != null && !cancelled) {
-            onCompleteHandler.sendMessage(onCompleteHandler.obtainMessage(BITMAP_READY, bitmap));
+       		onCompleteHandler.sendMessage(onCompleteHandler.obtainMessage(BITMAP_READY, bitmap));
         }
     }
 }

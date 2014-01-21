@@ -1,19 +1,18 @@
 package com.loopj.android.image;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.util.AttributeSet;
 import android.widget.ImageView;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
 public class SmartImageView extends ImageView {
-    private static final int LOADING_THREADS = 4;
+    private static final int LOADING_THREADS = 3;
     private static ExecutorService threadPool = Executors.newFixedThreadPool(LOADING_THREADS);
 
     private SmartImageTask currentTask;
-
 
     public SmartImageView(Context context) {
         super(context);
@@ -123,6 +122,54 @@ public class SmartImageView extends ImageView {
 
         // Run the task in a threadpool
         threadPool.execute(currentTask);
+    }
+    
+    public void setIconUrlAsync(final String url, final Integer fallbackResource, final Integer loadingResource, final long uid, final SmartImageTask.OnCompleteListener completeListener) {
+        // Set a loading resource
+        if(loadingResource != null){
+            setImageResource(loadingResource);
+        }
+
+        // Cancel any existing tasks for this image view
+        if(currentTask != null) {
+            currentTask.cancel();
+            currentTask = null;
+        }
+        
+        SmartImage image = new WebImage(url);
+        // Set up the new task
+        currentTask = new SmartImageTask(getContext(), image);
+        currentTask.setOnCompleteHandler(new SmartImageTask.OnCompleteHandler() {
+            @Override
+            public void onComplete(Bitmap bitmap) {
+                if(bitmap != null) {
+                	if( uid == (Long)getTag()){
+                		setImageBitmap(bitmap);
+                	}
+                } else {
+                    // Set fallback resource
+                    if(fallbackResource != null) {
+                        setImageResource(fallbackResource);
+                    }
+                }
+                if(completeListener != null){
+                    completeListener.onComplete();
+                }
+            }
+        });
+
+        // Run the task in a threadpool
+        threadPool.execute(currentTask);
+    }
+
+    public void setIconUrl(final String url, final Integer fallbackResource, final Integer loadingResource, final long uid){
+    	Bitmap bitmap = new WebImage(url).getBitmapFromMemoryCache(getContext());
+		setTag(uid);//all icons must set tag to avoid swapping bitmap.
+    	if(bitmap != null){
+    		setImageBitmap(bitmap);
+    	} else {
+    		setIconUrlAsync(url, fallbackResource, loadingResource, uid, null);
+    	}
     }
 
     public static void cancelAllTasks() {

@@ -5,8 +5,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.lang.ref.SoftReference;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -14,22 +12,31 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Bitmap.CompressFormat;
 import android.graphics.BitmapFactory;
+import android.os.Environment;
 
 public class WebImageCache {
     private static final String DISK_CACHE_PATH = "/web_image_cache/";
 
-    private ConcurrentHashMap<String, SoftReference<Bitmap>> memoryCache;
+    private LruBitmapCache memoryCache;
     private String diskCachePath;
     private boolean diskCacheEnabled = false;
     private ExecutorService writeThread;
+    
+    private void resetCachePath(Context context){
+        Context appContext = context.getApplicationContext();
+        if(Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)){
+        	diskCachePath = appContext.getExternalCacheDir().getAbsolutePath() + DISK_CACHE_PATH;
+        } else {
+        	diskCachePath = appContext.getCacheDir().getAbsolutePath() + DISK_CACHE_PATH;
+        }
+    }
 
     public WebImageCache(Context context) {
         // Set up in-memory cache store
-        memoryCache = new ConcurrentHashMap<String, SoftReference<Bitmap>>();
+        memoryCache = new LruBitmapCache();
 
         // Set up disk cache store
-        Context appContext = context.getApplicationContext();
-        diskCachePath = appContext.getCacheDir().getAbsolutePath() + DISK_CACHE_PATH;
+        resetCachePath(context);
 
         File outFile = new File(diskCachePath);
         outFile.mkdirs();
@@ -52,6 +59,7 @@ public class WebImageCache {
 
             // Write bitmap back into memory cache
             if(bitmap != null) {
+            //	Log.i("WebImageCache", "Hit file cache");
                 cacheBitmapToMemory(url, bitmap);
             }
         }
@@ -60,8 +68,8 @@ public class WebImageCache {
     }
 
     public void put(String url, Bitmap bitmap) {
-        cacheBitmapToMemory(url, bitmap);
         cacheBitmapToDisk(url, bitmap);
+        cacheBitmapToMemory(url, bitmap);
     }
 
     public void remove(String url) {
@@ -96,7 +104,7 @@ public class WebImageCache {
     }
 
     private void cacheBitmapToMemory(final String url, final Bitmap bitmap) {
-        memoryCache.put(getCacheKey(url), new SoftReference<Bitmap>(bitmap));
+        memoryCache.put(getCacheKey(url), bitmap);
     }
 
     private void cacheBitmapToDisk(final String url, final Bitmap bitmap) {
@@ -123,14 +131,8 @@ public class WebImageCache {
         });
     }
 
-    private Bitmap getBitmapFromMemory(String url) {
-        Bitmap bitmap = null;
-        SoftReference<Bitmap> softRef = memoryCache.get(getCacheKey(url));
-        if(softRef != null){
-            bitmap = softRef.get();
-        }
-
-        return bitmap;
+    public Bitmap getBitmapFromMemory(String url) {
+        return memoryCache.get(getCacheKey(url));
     }
 
     private Bitmap getBitmapFromDisk(String url) {

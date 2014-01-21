@@ -40,6 +40,20 @@ public class WebImage implements SmartImage {
 
         return bitmap;
     }
+    
+    public Bitmap getBitmapFromMemoryCache(Context context) {
+        // Don't leak context
+        if(webImageCache == null) {
+            webImageCache = new WebImageCache(context);
+        }
+
+        // Try getting bitmap from cache first
+        Bitmap bitmap = null;
+        if(url != null) {
+            bitmap = webImageCache.get(url);
+        }
+        return bitmap;
+    }
 
     private Bitmap getBitmapFromUrl(String url) {
         Bitmap bitmap = null;
@@ -54,6 +68,21 @@ public class WebImage implements SmartImage {
         }
 
         return bitmap;
+    }
+    
+    public Bitmap getBitmapFromUrl() {
+    	Bitmap bitmap = null;
+    	
+    	try {
+    		URLConnection conn = new URL(url).openConnection();
+    		conn.setConnectTimeout(CONNECT_TIMEOUT);
+    		conn.setReadTimeout(READ_TIMEOUT);
+    		bitmap = BitmapFactory.decodeStream((InputStream) conn.getContent());
+    	} catch(Exception e) {
+    		e.printStackTrace();
+    	}
+    	
+    	return bitmap;
     }
 
     public static void removeFromCache(String url) {

@@ -142,10 +142,11 @@ public class SmartImageView extends ImageView {
         currentTask.setOnCompleteHandler(new SmartImageTask.OnCompleteHandler() {
             @Override
             public void onComplete(Bitmap bitmap) {
+                if( uid != (Long)getTag()) {
+                    return;
+                }
                 if(bitmap != null) {
-                	if( uid == (Long)getTag()){
-                		setImageBitmap(bitmap);
-                	}
+               	    setImageBitmap(bitmap);
                 } else {
                     // Set fallback resource
                     if(fallbackResource != null) {
